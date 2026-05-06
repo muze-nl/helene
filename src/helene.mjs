@@ -130,7 +130,13 @@ export class Helene
 		  }
 		})
 
-		this.keyboard = keyboard
+		simply.state.effect(() => {
+			const lang = this.state.languageModule
+			if (lang && this.languages[lang]?.keyboard) {
+				this.keyboard = this.languages[lang].keyboard
+			}
+		})
+
 		this.textarea.helene = this
 		this.textarea.addEventListener('keydown', function(evt) {
 			const key = getKeyString(evt)
@@ -290,7 +296,23 @@ export const html = {
 				}
 			})
 		}
-
+	},
+	keyboard: {
+		'tab': function(evt) {
+			if (this.state.block) {
+				blockChange.call(this, this.state.block.start, this.state.block.end, indentCode)
+				fireInput(evt)
+			} else {
+				insertTab.call(this, this.textarea.selectionStart, this.textarea.selectionEnd)
+				fireInput(evt)
+			}
+		},
+		'shift-tab': function(evt) {
+			if (this.state.block) {
+				blockChange.call(this, this.state.block.start, this.state.block.end, outdentCode)
+				fireInput(evt)
+			}
+		}
 	}
 }
 
@@ -326,6 +348,27 @@ export const javascript = {
 				}
 			}
 		}
+	},
+	keyboard: {
+		'tab': function(evt) {
+			if (this.state.block) {
+				blockChange.call(this, this.state.block.start, this.state.block.end, indentCode)
+				fireInput(evt)
+			} else {
+				insertTab.call(this, this.textarea.selectionStart, this.textarea.selectionEnd)
+				fireInput(evt)
+			}
+		},
+		'shift-tab': function(evt) {
+			if (this.state.block) {
+				blockChange.call(this, this.state.block.start, this.state.block.end, outdentCode)
+				fireInput(evt)
+			}
+		},
+		'control-/': function(evt) {
+			blockChange.call(this, this.state.block.start, this.state.block.end, toggleBlockComments)
+			fireInput(evt)
+		}
 	}
 }
 
@@ -335,28 +378,23 @@ export const css = {
 			content = Prism.highlight(content, Prism.languages.css, 'css')
 		}
 		return content
-	}	
-}
-
-export const keyboard = {
-	'tab': function(evt) {
-		if (this.state.block) {
-			blockChange.call(this, this.state.block.start, this.state.block.end, indentCode)
-			fireInput(evt)
-		} else {
-			insertTab.call(this, this.textarea.selectionStart, this.textarea.selectionEnd)
-			fireInput(evt)
-		}
 	},
-	'shift-tab': function(evt) {
-		if (this.state.block) {
-			blockChange.call(this, this.state.block.start, this.state.block.end, outdentCode)
-			fireInput(evt)
+	keyboard: {
+		'tab': function(evt) {
+			if (this.state.block) {
+				blockChange.call(this, this.state.block.start, this.state.block.end, indentCode)
+				fireInput(evt)
+			} else {
+				insertTab.call(this, this.textarea.selectionStart, this.textarea.selectionEnd)
+				fireInput(evt)
+			}
+		},
+		'shift-tab': function(evt) {
+			if (this.state.block) {
+				blockChange.call(this, this.state.block.start, this.state.block.end, outdentCode)
+				fireInput(evt)
+			}
 		}
-	},
-	'control-/': function(evt) {
-		blockChange.call(this, this.state.block.start, this.state.block.end, toggleBlockComments)
-		fireInput(evt)
 	}
 }
 
