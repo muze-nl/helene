@@ -65,6 +65,8 @@ export class Helene
 		})
 
 		simply.state.effect(() => {
+			this.state.lines = this.textarea.value.split("\n")
+			this.el.lines.innerHTML = Array.from(this.state.lines, (_, i) => i+1).join("\n")
 			let content = this.textarea.value
 			const lang = this.state.languageModule
 			if (this.languages[lang]?.highlight) {
@@ -76,8 +78,6 @@ export class Helene
 			if (this.languages[lang]?.parse) {
 				content = this.languages[lang].parse.call(this, this.textarea.value, options)
 			}
-			this.state.lines = this.textarea.value.split("\n")
-			this.el.lines.innerHTML = Array.from(this.state.lines, (_, i) => i+1).join("\n")
 		})
 
 		this.state.selection = null
@@ -266,12 +266,13 @@ export const html = {
 		this.parsedHTML = document.createElement('div')
 		this.parsedHTML.appendChild(fragment)
 		if (options.validate) {
+			this.clearWarnings('html')
 			const constructedLines = this.parsedHTML.innerHTML.split("\n")
 			let count = 0
 			for (const line of constructedLines) {
-				if (line != this.state.lines.current[count]) {
-					if (!this.state.lines.current[count].match(/\<script\b/i)) {
-						this.addWarning('html', 'Invalid HTML', lineNumber + count+1)
+				if (line != this.state.lines[count]) {
+					if (!this.state.lines[count].match(/\<script\b/i)) {
+						this.addWarning('html', 'Invalid HTML', options.lineNumber + count+1)
 						return
 					}
 				}
