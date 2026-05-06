@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Helene: simple textarea-based code editor</title>
+    <href="prism.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/prismjs/prism-themes/themes/prism-cb.css">
+    <link rel="stylesheet" href="helene.css">
+    <script src="prism.js" data-manual></script>
+    <script src="acorn.js"></script>
+  </head>
+  <body>
+    <h1>Helene: simple textarea-based code editor</h1>
+    <p>Editor:</p>
+        <textarea id="helene" data-helene-language="html" spellcheck="false">
+<div>
+  <a href="#">foo
+</div>
+        </textarea>
+    <script type="module">
+      import helene from './helene.js'
+      import './simplyflow/src/flow.mjs'
+
+      const editor = helene({
+        textarea: document.getElementById('helene')
+      })
+    </script>
+  </body>
+</html>
