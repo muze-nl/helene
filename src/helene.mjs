@@ -401,3 +401,32 @@ export function outdentCode(block) {
   })
   return [ outdented, count ]
 }
+
+function toggleBlockComments(block) {
+  if (block[0].substring(0,3)=="//\t") {
+    return uncommentBlock(block)
+  } else {
+    return commentBlock(block)
+  }
+}
+
+function commentBlock(block) {
+  let count = 0
+  block = block.map(line => {
+    count += 3
+    return "//\t" + line
+  })
+  return [block, count]
+}
+
+function uncommentBlock(block) {
+  let count = 0
+  block = block.map(line => {
+    if (line.substring(0,3)=="//\t") {
+      line = line.substring(3)
+      count -= 3
+    }
+    return line
+  })
+  return [block, count]
+}
