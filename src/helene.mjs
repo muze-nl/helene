@@ -26,7 +26,7 @@ export class Helene
 		</div>
 	</div>`
 
-        const fragment = globalThis.document.createRange().createContextualFragment(decoration)
+    const fragment = globalThis.document.createRange().createContextualFragment(decoration)
 		this.editor = fragment.firstChild
 		options.textarea.classList.forEach((c) => {
 			this.editor.classList.add(c)
@@ -60,18 +60,22 @@ export class Helene
 		simply.state.effect(() => {
 			const lang = this.textarea.dataset.heleneLanguage
 			if (this.languages[lang]) {
-				this.state.languageModule = this.languages[lang]
+				this.state.languageModule = lang // if we set this to the actual module, the functions get rebound by signal()
 			}
 		})
 
 		simply.state.effect(() => {
 			let content = this.textarea.value
-			if (this.state.languageModule?.highlight) {
-				content = this.state.languageModule.highlight.call(this, content)
+			const lang = this.state.languageModule
+			if (this.languages[lang]?.highlight) {
+				content = this.languages[lang].highlight.call(this, this.textarea.value, options)
 			} else {
 				content = escapeHTML(content)
 			}
 			this.el.highlight.innerHTML = content
+			if (this.languages[lang]?.parse) {
+				content = this.languages[lang].parse.call(this, this.textarea.value, options)
+			}
 			this.state.lines = this.textarea.value.split("\n")
 			this.el.lines.innerHTML = Array.from(this.state.lines, (_, i) => i+1).join("\n")
 		})
@@ -302,7 +306,7 @@ export const javascript = {
 			...options
 		}
 		if (options.validate) {
-			this.clearWarnings('html')
+			this.clearWarnings('javascript')
 		}
 		if (globalThis.acorn) {
 			try {
