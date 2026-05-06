@@ -37,6 +37,7 @@ export class Helene
 		options.textarea.classList.add('helene-content')
 		options.textarea.parentElement.insertBefore(this.editor, options.textarea)
 		this.el = {
+			textarea:  options.textarea,
 			scroll:    this.editor.querySelector('.helene-scroll'),
 			viewpane:  this.editor.querySelector('.helene-pane'),
 			gutter:    this.editor.querySelector('.helene-gutter'),
@@ -50,15 +51,28 @@ export class Helene
 		this.state = simply.state.signal({
 			options
 		})
+
+		this.languages = {
+			html,
+			javascript,
+			css
+		}
+		simply.state.effect(() => {
+			const lang = this.textarea.dataset.heleneLanguage
+			if (this.languages[lang]) {
+				this.state.languageModule = this.languages[lang]
+			}
+		})
+
 		simply.state.effect(() => {
 			let content = this.textarea.value
-			if (this.languageModule?.highlight) {
-				content = this.languageModule.highlight.call(this, content)
+			if (this.state.languageModule?.highlight) {
+				content = this.state.languageModule.highlight.call(this, content)
 			} else {
 				content = escapeHTML(content)
 			}
 			this.el.highlight.innerHTML = content
-			this.state.lines = content.split("\n")
+			this.state.lines = this.textarea.value.split("\n")
 			this.el.lines.innerHTML = Array.from(this.state.lines, (_, i) => i+1).join("\n")
 		})
 
@@ -120,7 +134,6 @@ export class Helene
 				this.helene.keyboard[key].call(this.helene, evt)
 			}
 		})
-
 	}
 
 	addWarning(type, message, line, icon=null)
@@ -191,7 +204,7 @@ export default function helene(options)
 
 export function domWalk(htmlStr, callback)
 {
-    const dom = globalThis.document.createRange().createContextualFragment(htmlStr)
+  const dom = globalThis.document.createRange().createContextualFragment(htmlStr)
 	const lines = htmlStr.split("\n")
 	let lineNumber = 0
 	const tagRE = /^[a-zA-Z][a-zA-Z\-]*/
@@ -235,6 +248,8 @@ export const html = {
 	highlight: function(content) {
 		if (globalThis.Prism) {
 			content = Prism.highlight(content, Prism.languages.html, 'html')
+		} else {
+			content = escapeHTML(content)
 		}
 		return content
 	},
@@ -319,23 +334,23 @@ export const css = {
 }
 
 export const keyboard = {
-	'tab': (evt) => {
+	'tab': function(evt) {
 		if (this.state.block) {
-			blockChange(this.textarea, this.state.block.start, this.state.block.end, indentCode)
+			blockChange.call(this, this.state.block.start, this.state.block.end, indentCode)
 			fireInput(evt)
 		} else {
-			insertTab(this.textarea, this.textarea.selectionStart, this.textarea.selectionEnd)
+			insertTab.call(this, this.textarea.selectionStart, this.textarea.selectionEnd)
 			fireInput(evt)
 		}
 	},
-	'shift-tab': (evt) => {
+	'shift-tab': function(evt) {
 		if (this.state.block) {
-			blockChange(this.textarea, this.state.block.start, this.state.block.end, outdentCode)
+			blockChange.call(this, this.state.block.start, this.state.block.end, outdentCode)
 			fireInput(evt)
 		}
 	},
-	'control-/': (evt) => {
-		blockChange(this.textarea, this.state.block.start, this.state.block.end, toggleBlockComments)
+	'control-/': function(evt) {
+		blockChange.call(this, this.state.block.start, this.state.block.end, toggleBlockComments)
 		fireInput(evt)
 	}
 }
@@ -345,18 +360,23 @@ export function fireInput(evt) {
   evt.target.dispatchEvent(new Event('input', { bubbles: true }));
 }
 
-export function insertTab(textarea, start, end) {
+export function insertTab(start, end) {
+	const textarea = this.el.textarea
   textarea.value = textarea.value.substring(0, start) + "\t" + textarea.value.substring(end)
   textarea.selectionStart = start + 1
   textarea.selectionEnd = textarea.selectionStart
 }
 
-export function blockChange(textarea, start, end, fn) {
-  const block = state.lines.slice(start, end)
+export function blockChange(start, end, fn) {
+	const textarea = this.el.textarea
+  const block = this.state.lines.slice(start, end)
   let outblock, outcount;
   [ outblock, outcount ] = fn(block)
-  const selection = { start: state.selection.start, end: state.selection.end}
-  textarea.value = state.lines.slice(0, start).concat(outblock).concat(state.lines.slice(end)).join("\n")
+  const selection = { start: this.state.selection.start, end: this.state.selection.end}
+  textarea.value = this.state.lines.slice(0, start)
+  	.concat(outblock)
+  	.concat(this.state.lines.slice(end))
+  	.join("\n")
   textarea.selectionStart = selection.start
   textarea.selectionEnd = selection.end + outcount
 }
