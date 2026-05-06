@@ -1,3 +1,9 @@
+import history, { Change, Diff } from './history.mjs'
+import { html } from './html.mjs'
+import { javascript } from './javascript.mjs'
+import { css } from './css.mjs'
+import { getKeyString } from './keyboard.mjs'
+
 export class Helene
 {
 	constructor(options)
@@ -8,7 +14,6 @@ export class Helene
 		if (!globalThis.simply?.state) {
 			throw new Error('Helene: missing simply.state library')
 		}
-		this.textarea = simply.dom.signal(options.textarea)
 
 		const decoration = `<div class="helene">
 		<div class="helene-scroll">
@@ -28,6 +33,7 @@ export class Helene
 
     const fragment = globalThis.document.createRange().createContextualFragment(decoration)
 		this.editor = fragment.firstChild
+		this.textarea = simply.dom.signal(options.textarea)
 		options.textarea.classList.forEach((c) => {
 			this.editor.classList.add(c)
 		})
@@ -49,7 +55,9 @@ export class Helene
 		}
 		this.el.viewpane.replaceChild(options.textarea, this.editor.querySelector('textarea'))
 		this.state = simply.state.signal({
-			options
+			options,
+			prevContent: options.textarea.value,
+			lines: options.textarea.value.split("\n")
 		})
 
 		this.languages = {
@@ -64,10 +72,20 @@ export class Helene
 			}
 		})
 
+		// called whenever this.textarea.value changes, so oninput among others
 		simply.state.effect(() => {
-			this.state.lines = this.textarea.value.split("\n")
-			this.el.lines.innerHTML = Array.from(this.state.lines, (_, i) => i+1).join("\n")
 			let content = this.textarea.value
+			let changed = false
+			if (content!==this.state.prevContent) {
+				changed = true
+				if (!this.skipHistory) {
+					// TODO:
+					// create a Diff for this change - update if time since last change < x
+					// if debounced: create a Change and push it onto the undo stack
+				}
+				this.state.prevContent = content
+				this.state.lines = content.split("\n")
+			}
 			const lang = this.state.languageModule
 			if (this.languages[lang]?.highlight) {
 				content = this.languages[lang].highlight.call(this, this.textarea.value, options)
@@ -75,10 +93,15 @@ export class Helene
 				content = escapeHTML(content)
 			}
 			this.el.highlight.innerHTML = content
-			if (this.languages[lang]?.parse) {
+			if (changed && this.languages[lang]?.parse) {
 				content = this.languages[lang].parse.call(this, this.textarea.value, options)
 			}
 		})
+
+		simply.state.effect(() => {
+			this.el.lines.innerHTML = Array.from(this.state.lines, (_, i) => i+1).join("\n")
+		})
+		// TODO: explicitly listen to oninput to catch historyRedo/historyUndo evt.inputType
 
 		this.state.selection = null
 		this.textarea.addEventListener('selectionchange', (evt) => {
@@ -169,307 +192,40 @@ export class Helene
 		}
 	}
 
+	// needed by undo/redo, update content without triggering history
+	replace(start, end, content) {
+		this.skipHistory = true
+		this.el.textarea.setRangeText(content, start, end, 'end')
+		setTimeout(() => {
+			this.skipHistory = false
+		})
+	}
+
+	select(selection) {
+		//TODO: check that cursor is scrolled into view
+		this.el.textarea.selectionStart = selection.start
+		this.el.textarea.selectionEnd = selection.end
+	}
+
+	blockChange(start, end, fn)
+	{
+		const textarea = this.el.textarea
+	  const block = this.state.lines.slice(start, end)
+	  let outblock, outcount;
+	  [ outblock, outcount ] = fn(block)
+	  const selection = { start: this.state.selection.start, end: this.state.selection.end}
+	  textarea.value = this.state.lines.slice(0, start)
+	  	.concat(outblock)
+	  	.concat(this.state.lines.slice(end))
+	  	.join("\n")
+	  textarea.selectionStart = selection.start
+	  textarea.selectionEnd = selection.end + outcount
+	}
 }
 
-const KEY = Object.freeze({
-	Compose: 229,
-	Control: 17,
-	Meta:    224,
-	Alt:     18,
-	Shift:   16
-})
-
-function getKeyString(e)
-{
-	if (e.isComposing || e.keyCode === KEY.Compose) {
-	    return
-	}
-	if (e.defaultPrevented) {
-	    return
-	}
-	if (!e.target) {
-	    return
-	}
-	let keyCombination = []
-	if (e.ctrlKey && e.keyCode!=KEY.Control) {
-	    keyCombination.push('control')
-	}
-	if (e.metaKey && e.keyCode!=KEY.Meta) {
-	    keyCombination.push('meta')
-	}
-	if (e.altKey && e.keyCode!=KEY.Alt) {
-	    keyCombination.push('alt')
-	}
-	if (e.shiftKey && e.keyCode!=KEY.Shift) {
-	    keyCombination.push('shift')
-	}
-	keyCombination.push(e.key.toLowerCase())
-	return keyCombination.join('-')
-}
 
 export default function helene(options)
 {
 	return new Helene(options)
 }
 
-export function domWalk(htmlStr, callback)
-{
-  const dom = globalThis.document.createRange().createContextualFragment(htmlStr)
-	const lines = htmlStr.split("\n")
-	let lineNumber = 0
-	const tagRE = /^[a-zA-Z][a-zA-Z\-]*/
-	const tagStack = lines.map(l => l.split('<').map(s => tagRE.exec(s)?.[0]).filter(Boolean))
-	let alltags = []
-	for (let line=0; line<tagStack.length; line++) {
-		for (const tag of tagStack[line]) {
-			alltags.push({tag, line})
-		}
-	}
-	const findTag = function(tag) {
-		while (alltags.length && alltags[0]?.tag.toUpperCase()!==tag) {
-			alltags = alltags.slice(1)
-		}
-		if (alltags[0]?.tag) {
-			const line = alltags[0].line
-			alltags = alltags.slice(1)
-			return line
-		}
-	}
-	const innerWalk = function(el) {
-		lineNumber = findTag(el.tagName)
-		callback(el, lineNumber)
-		if (el.childElements) {
-			for (const child of el.childElements) {
-				innerWalk(child)
-			}
-		}
-	}
-	for (const child of dom.children) {
-		innerWalk(child)
-	}
-}
-
-function escapeHTML(str)
-{
-	return str.replace(/\</g, '&lt;')
-}
-
-export const html = {
-	highlight: function(content) {
-		if (globalThis.Prism) {
-			content = Prism.highlight(content, Prism.languages.html, 'html')
-		} else {
-			content = escapeHTML(content)
-		}
-		return content
-	},
-	parse: function(content, options) {
-		options = {
-			lineNumber: 0,
-			...options
-		}
-		const fragment = globalThis.document.createRange().createContextualFragment(content)
-		this.parsedHTML = document.createElement('div')
-		this.parsedHTML.appendChild(fragment)
-		if (options.validate) {
-			this.clearWarnings('html')
-			const constructedLines = this.parsedHTML.innerHTML.split("\n")
-			let count = 0
-			for (const line of constructedLines) {
-				if (line != this.state.lines[count]) {
-					if (!this.state.lines[count].match(/\<script\b/i)) {
-						this.addWarning('html', 'Invalid HTML', options.lineNumber + count+1)
-						return
-					}
-				}
-				count++
-			}
-			// now check for script tags
-			domWalk(this.textarea.value, (el, lineNumber) => {
-				if (el.tagName==='SCRIPT' && !el.src && (!el.type || el.type=='javascript') && el.innerText) {
-					javascript.parse(el.innerText, {
-						lineNumber: lineNumber + options.lineNumber,
-						...options
-					})
-				} else if (el.tagName==='STYLE') {
-					// css.parse....
-				}
-			})
-		}
-	},
-	keyboard: {
-		'tab': function(evt) {
-			if (this.state.block) {
-				blockChange.call(this, this.state.block.start, this.state.block.end, indentCode)
-				fireInput(evt)
-			} else {
-				insertTab.call(this, this.textarea.selectionStart, this.textarea.selectionEnd)
-				fireInput(evt)
-			}
-		},
-		'shift-tab': function(evt) {
-			if (this.state.block) {
-				blockChange.call(this, this.state.block.start, this.state.block.end, outdentCode)
-				fireInput(evt)
-			}
-		}
-	}
-}
-
-export const javascript = {
-	highlight: function(content) {
-		if (globalThis.Prism) {
-			content = Prism.highlight(content, Prism.languages.javascript, 'javascript')
-		}
-		return content
-	},
-	parse: function(content, options) {
-		options = {
-			lineNumber: 0,
-			...options
-		}
-		if (options.validate) {
-			this.clearWarnings('javascript')
-		}
-		if (globalThis.acorn) {
-			try {
-				this.state.parsedJavascript = acorn.parse(content)
-			} catch(err) {
-				if (options.validate) {
-					this.addWarning('javascript', err.message, options.lineNumber + err.loc.line)
-				}
-			}
-		} else {
-			try {
-				eval(content) // new Function is unreliable
-			} catch(err) {
-				if (options.validate) {
-					this.addWarning('javascript', err.message, options.lineNumber + err.lineNumber)
-				}
-			}
-		}
-	},
-	keyboard: {
-		'tab': function(evt) {
-			if (this.state.block) {
-				blockChange.call(this, this.state.block.start, this.state.block.end, indentCode)
-				fireInput(evt)
-			} else {
-				insertTab.call(this, this.textarea.selectionStart, this.textarea.selectionEnd)
-				fireInput(evt)
-			}
-		},
-		'shift-tab': function(evt) {
-			if (this.state.block) {
-				blockChange.call(this, this.state.block.start, this.state.block.end, outdentCode)
-				fireInput(evt)
-			}
-		},
-		'control-/': function(evt) {
-			blockChange.call(this, this.state.block.start, this.state.block.end, toggleBlockComments)
-			fireInput(evt)
-		}
-	}
-}
-
-export const css = {
-	highlight: function(content) {
-		if (globalThis.Prism) {
-			content = Prism.highlight(content, Prism.languages.css, 'css')
-		}
-		return content
-	},
-	keyboard: {
-		'tab': function(evt) {
-			if (this.state.block) {
-				blockChange.call(this, this.state.block.start, this.state.block.end, indentCode)
-				fireInput(evt)
-			} else {
-				insertTab.call(this, this.textarea.selectionStart, this.textarea.selectionEnd)
-				fireInput(evt)
-			}
-		},
-		'shift-tab': function(evt) {
-			if (this.state.block) {
-				blockChange.call(this, this.state.block.start, this.state.block.end, outdentCode)
-				fireInput(evt)
-			}
-		}
-	}
-}
-
-export function fireInput(evt) {
-  evt.preventDefault()
-  evt.target.dispatchEvent(new Event('input', { bubbles: true }));
-}
-
-export function insertTab(start, end) {
-	const textarea = this.el.textarea
-  textarea.value = textarea.value.substring(0, start) + "\t" + textarea.value.substring(end)
-  textarea.selectionStart = start + 1
-  textarea.selectionEnd = textarea.selectionStart
-}
-
-export function blockChange(start, end, fn) {
-	const textarea = this.el.textarea
-  const block = this.state.lines.slice(start, end)
-  let outblock, outcount;
-  [ outblock, outcount ] = fn(block)
-  const selection = { start: this.state.selection.start, end: this.state.selection.end}
-  textarea.value = this.state.lines.slice(0, start)
-  	.concat(outblock)
-  	.concat(this.state.lines.slice(end))
-  	.join("\n")
-  textarea.selectionStart = selection.start
-  textarea.selectionEnd = selection.end + outcount
-}
-
-export function indentCode(block) {
-  let count = 0
-  const indented = block.map(line => {
-    count++ //inserted characters
-    return "\t"+line
-  })
-  return [ indented, count ]
-}
-
-export function outdentCode(block) {
-  let count = 0
-  const outdented = block.map(line => {
-    if (line[0]==="\t") {
-      count-- //removed characters
-      return line.substring(1)
-    }
-    return line
-  })
-  return [ outdented, count ]
-}
-
-function toggleBlockComments(block) {
-  if (block[0].substring(0,3)=="//\t") {
-    return uncommentBlock(block)
-  } else {
-    return commentBlock(block)
-  }
-}
-
-function commentBlock(block) {
-  let count = 0
-  block = block.map(line => {
-    count += 3
-    return "//\t" + line
-  })
-  return [block, count]
-}
-
-function uncommentBlock(block) {
-  let count = 0
-  block = block.map(line => {
-    if (line.substring(0,3)=="//\t") {
-      line = line.substring(3)
-      count -= 3
-    }
-    return line
-  })
-  return [block, count]
-}
