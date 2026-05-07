@@ -1,4 +1,4 @@
-import history, { Change, Diff } from './history.mjs'
+import History, { Change, Diff } from './history.mjs'
 import { html } from './html.mjs'
 import { javascript } from './javascript.mjs'
 import { css } from './css.mjs'
@@ -42,6 +42,7 @@ export class Helene
 		}
 		options.textarea.classList.add('helene-content')
 		options.textarea.parentElement.insertBefore(this.editor, options.textarea)
+
 		this.el = {
 			textarea:  options.textarea,
 			scroll:    this.editor.querySelector('.helene-scroll'),
@@ -54,10 +55,13 @@ export class Helene
 			cursor:    this.editor.querySelector('.helene-cursor')
 		}
 		this.el.viewpane.replaceChild(options.textarea, this.editor.querySelector('textarea'))
+
+		this.history = new History()
+
 		this.state = simply.state.signal({
 			options,
 			prevContent: options.textarea.value,
-			lines: options.textarea.value.split("\n")
+			lines: options.textarea.value.split("\n"),
 		})
 
 		this.languages = {
@@ -79,13 +83,31 @@ export class Helene
 			if (content!==this.state.prevContent) {
 				changed = true
 				if (!this.skipHistory) {
-					// TODO:
-					// create a Diff for this change - update if time since last change < x
-					// if debounced: create a Change and push it onto the undo stack
+					if (!this.diff) {
+						// input fires before selectionchange, state.selection
+						// still has the previous selection state
+						this.diff = new Diff(
+							{
+								start:this.state.selection.start,
+								end: this.state.selection.end
+							},
+							this.state.prevContent.substring(this.state.selection.start,this.state.selection.end),
+							content.substring(this.state.selection.start, this.el.textarea.selectionEnd)
+						)
+					} else {
+						this.diff.after = content.substring(this.diff.selection.start, this.el.textarea.selectionEnd)
+					}
+					if (this.pendingHistory) {
+						clearTimeout(this.pendingHistory)
+					}
+					this.pendingHistory = setTimeout(() => {
+						this.updateHistory()
+					}, 300)
 				}
 				this.state.prevContent = content
 				this.state.lines = content.split("\n")
 			}
+			// if the language state changes, redo highlight, even if content has not changed
 			const lang = this.state.languageModule
 			if (this.languages[lang]?.highlight) {
 				content = this.languages[lang].highlight.call(this, this.textarea.value, options)
@@ -94,14 +116,13 @@ export class Helene
 			}
 			this.el.highlight.innerHTML = content
 			if (changed && this.languages[lang]?.parse) {
-				content = this.languages[lang].parse.call(this, this.textarea.value, options)
+				this.state.parsedContent = this.languages[lang].parse.call(this, this.textarea.value, options)
 			}
 		})
 
 		simply.state.effect(() => {
 			this.el.lines.innerHTML = Array.from(this.state.lines, (_, i) => i+1).join("\n")
 		})
-		// TODO: explicitly listen to oninput to catch historyRedo/historyUndo evt.inputType
 
 		this.state.selection = null
 		this.textarea.addEventListener('selectionchange', (evt) => {
@@ -161,11 +182,36 @@ export class Helene
 		})
 
 		this.textarea.helene = this
-		this.textarea.addEventListener('keydown', function(evt) {
+		this.textarea.addEventListener('keydown', (evt) => {
+			this.inputFired = false
 			const key = getKeyString(evt)
-			if (this.helene.keyboard[key]) {
-				this.helene.keyboard[key].call(this.helene, evt)
+			if (this.keyboard[key]) {
+				this.keyboard[key].call(this, evt)
+			} else {
+				switch(key) {
+					case 'control-z':
+					case 'command-z':
+						this.history.undo();
+						evt.preventDefault();
+					break;
+					case 'control-y':
+					case 'control-shift-z':
+					case 'command-y':
+						this.history.redo();
+						evt.preventDefault();
+					break;
+				}
 			}
+
+		})
+		this.textarea.addEventListener('input', (evt) => {
+			this.inputFired = true
+		})
+		this.textarea.addEventListener('keyup', (evt) => {
+			if (!this.inputFired) {
+				this.updateHistory() // cursor keys?
+			}
+			this.inputFired = false
 		})
 	}
 
@@ -210,16 +256,36 @@ export class Helene
 	blockChange(start, end, fn)
 	{
 		const textarea = this.el.textarea
-	  const block = this.state.lines.slice(start, end)
-	  let outblock, outcount;
-	  [ outblock, outcount ] = fn(block)
-	  const selection = { start: this.state.selection.start, end: this.state.selection.end}
-	  textarea.value = this.state.lines.slice(0, start)
-	  	.concat(outblock)
-	  	.concat(this.state.lines.slice(end))
-	  	.join("\n")
-	  textarea.selectionStart = selection.start
-	  textarea.selectionEnd = selection.end + outcount
+		const block = this.state.lines.slice(start, end)
+		let outblock, outcount;
+		[ outblock, outcount ] = fn(block)
+		const selection = { start: this.state.selection.start, end: this.state.selection.end}
+		textarea.value = this.state.lines.slice(0, start)
+			.concat(outblock)
+			.concat(this.state.lines.slice(end))
+			.join("\n")
+		textarea.selectionStart = selection.start
+		textarea.selectionEnd = selection.end + outcount
+	}
+
+	updateHistory() {
+		if (this.diff) {
+			const change = new Change(
+				this.diff, 
+				{
+					before: this.diff.selection,
+					after: {
+						start: this.el.textarea.selectionStart,
+						end: this.el.textarea.selectionEnd
+					}
+				},
+				this
+			)
+			this.history.undoStack.push(change)
+			this.history.redoStack = []
+		}
+		this.diff = null
+		clearTimeout(this.pendingHistory)
 	}
 }
 
