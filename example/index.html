@@ -29,12 +29,12 @@ funtion foo() {
       import helene from '../src/helene.mjs'
       import './simplyflow/src/flow.mjs'
 
-      const editor = helene({
+      globalThis.editor1 = helene({
         textarea: document.getElementById('helene'),
         validate: true
       })
 
-      const editor2 = helene({
+      globalThis.editor2 = helene({
         textarea: document.getElementById('helene2'),
         validate: true
       })
