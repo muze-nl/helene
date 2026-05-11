@@ -29,7 +29,7 @@ function foo() {
 }
 </textarea>
 <script type="module">
-  import helene from "https://cdn.jsdelivr.net/gh/muze-nl/helene@master/src/helene.mjs"
+  import helene from "https://cdn.jsdelivr.net/gh/muze-nl/helene/src/helene.mjs"
 
   helene({
     textarea: document.getElementById('mycode')
