@@ -18,7 +18,7 @@ to build a complex IDE around. It is a good option to include in web projects, d
   
 ## Demo
 
-(TBD: see [examples/](./examples/) for now
+(TBD: see [examples/](./example/) for now
 
 ## Usage
 
