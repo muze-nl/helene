@@ -1,4 +1,5 @@
-import { fireInput, indentCode, insertTab, outdentCode } from './keyboard.mjs'
+import { fireInput } from './keyboard.mjs'
+import { indentCode, insertTab, outdentCode } from './behaviour.mjs'
 
 export function domWalk(htmlStr, callback)
 {
@@ -80,21 +81,40 @@ export const html = {
 			})
 		}
 	},
-	keyboard: {
-		'tab': function(evt) {
+	behaviour: {
+		indent: function(block) {
 			if (this.state.block) {
-				this.blockChange.call(this, this.state.block.start, this.state.block.end, indentCode)
+				this.blockChange(block.start, block.end, indentCode)
 				fireInput(evt)
 			} else {
 				insertTab.call(this, this.textarea.selectionStart, this.textarea.selectionEnd)
 				fireInput(evt)
 			}
 		},
-		'shift-tab': function(evt) {
-			if (this.state.block) {
-				this.blockChange.call(this, this.state.block.start, this.state.block.end, outdentCode)
+		outdent: function(block) {
+			if (block) {
+				this.blockChange(block.start, block.end, outdentCode)
 				fireInput(evt)
 			}
+		}
+	},
+	keyboard: {
+		'escape': function() {
+			this.skipNextTab = true
+		},
+		'tab': function(evt) {
+			if (this.skipNextTab) {
+				delete this.skipNextTab
+				return
+			}
+			this.behaviour.indent(this.state.block)
+		},
+		'shift-tab': function(evt) {
+			if (this.skipNextTab) {
+				delete this.skipNextTab
+				return
+			}
+			this.behaviour.outdent(this.state.block)
 		}
 	}
 }

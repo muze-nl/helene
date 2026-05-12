@@ -62,6 +62,13 @@ export class Helene
 			options,
 			prevContent: options.textarea.value,
 			lines: options.textarea.value.split("\n"),
+			block: null,
+			selection: {
+				start: 0,
+				end: 0,
+				before: [''],
+				after: options.textarea.value.split("\n")
+			}
 		})
 
 		this.languages = {
@@ -124,7 +131,6 @@ export class Helene
 			this.el.lines.innerHTML = Array.from(this.state.lines, (_, i) => i+1).join("\n")
 		})
 
-		this.state.selection = null
 		this.textarea.addEventListener('selectionchange', (evt) => {
 			this.state.selection = {
 				start: this.textarea.selectionStart,
