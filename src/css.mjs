@@ -26,6 +26,9 @@ export const css = {
 		}
 	},
 	keyboard: {
+		'escape': function() {
+			this.skipNextTab = true
+		},
 		'tab': function(evt) {
 			if (this.skipNextTab) {
 				delete this.skipNextTab
