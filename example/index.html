@@ -1,47 +1,56 @@
 <!doctype html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Helene: simple textarea-based code editor</title>
-    <href="prism.css" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/prismjs/prism-themes/themes/prism-cb.css">
-    <link rel="stylesheet" href="helene.css">
-    <script src="prism.js" data-manual></script>
-    <!-- script src="acorn.js"></script -->
-    <script type="module">
-      import * as acorn from 'https://esm.sh/acorn@8.16.0/es2022/acorn.bundle.mjs'
-      globalThis.acorn = acorn
-    </script>
-  </head>
-  <body>
-    <h1>Helene: simple textarea-based code editor</h1>
-    <p>Editor:</p>
-        <textarea id="helene" data-helene-language="html" spellcheck="false">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<link rel="stylesheet" href="../src/helene.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/prism-themes@1.9.0/themes/prism-cb.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/prismjs@1.30.0/themes/prism.min.css">
+
+<script type="importmap">
+    {"imports": {
+        "acorn": "https://cdn.jsdelivr.net/npm/acorn@8.16.0/dist/acorn.js",
+        "helene": "../src/helene.mjs",
+        "simplyflow": "https://cdn.jsdelivr.net/npm/simplyflow@0.7.9/dist/simply.flow.js"
+    }}
+</script>
+
+<script src="https://cdn.jsdelivr.net/npm/prismjs@1.30.0/prism.js" data-manual></script>
+<script src="https://cdn.jsdelivr.net/npm/prismjs@1.30.0/components/prism-clike.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/prismjs@1.30.0/components/prism-css.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/prismjs@1.30.0/components/prism-javascript.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/prismjs@1.30.0/components/prism-markup.min.js"></script>
+<style>title {display: inline}</style>
+
+<h1><title>Helene: simple textarea-based code editor</title></h1>
+
+<p>Editor:</p>
+
+<textarea id="helene" data-helene-language="html" spellcheck="false">
 <div>
   <a href="#">foo
 </div>
-        </textarea>
+</textarea>
 
-        <textarea id="helene2" data-helene-language="javascript" spellcheck="false">
+<textarea id="helene2" data-helene-language="javascript" spellcheck="false">
 funtion foo() {
   console.log('bar')
 }
-        </textarea>
+</textarea>
 
-    <script type="module">
-      import helene from '../src/helene.mjs'
-      import './simplyflow/src/flow.mjs'
+<script type="module">
+    import 'acorn'
+    import helene from 'helene'
+    import 'simplyflow'
 
-      globalThis.editor1 = helene({
+    globalThis.editor1 = helene({
         textarea: document.getElementById('helene'),
-        validate: true
-      })
+        validate: true,
+    })
 
-      globalThis.editor2 = helene({
+    globalThis.editor2 = helene({
         textarea: document.getElementById('helene2'),
-        validate: true
-      })
-    </script>
-  </body>
+        validate: true,
+    })
+</script>
 </html>
