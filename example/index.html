@@ -1,42 +1,61 @@
 <!doctype html>
 <html lang="en">
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-<link rel="stylesheet" href="../src/helene.css">
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/prism-themes@1.9.0/themes/prism-cb.css">
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/prismjs@1.30.0/themes/prism.min.css">
+  <link rel="stylesheet" href="../src/helene.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/prism-themes@1.9.0/themes/prism-cb.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/prismjs@1.30.0/themes/prism.min.css">
+  <style>
+    .console {
+      font-family: monospace;
+      margin-left: 1em;
+      height: 100%;
+      width: 100%;
+      overflow: auto;
+      white-space: pre-wrap;
+    }
+  </style>
 
-<script type="importmap">
-    {"imports": {
-        "acorn": "https://cdn.jsdelivr.net/npm/acorn@8.16.0/dist/acorn.js",
-        "helene": "../src/helene.mjs",
-        "simplyflow": "https://cdn.jsdelivr.net/npm/simplyflow@0.7.9/dist/simply.flow.js"
-    }}
-</script>
+  <script type="importmap">
+      {"imports": {
+          "acorn": "https://cdn.jsdelivr.net/npm/acorn@8.16.0/dist/acorn.js",
+          "helene": "../src/helene.mjs",
+          "simplyflow": "https://cdn.jsdelivr.net/npm/simplyflow@0.7.9/dist/simply.flow.js"
+      }}
+  </script>
 
-<script src="https://cdn.jsdelivr.net/npm/prismjs@1.30.0/prism.js" data-manual></script>
-<script src="https://cdn.jsdelivr.net/npm/prismjs@1.30.0/components/prism-clike.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/prismjs@1.30.0/components/prism-css.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/prismjs@1.30.0/components/prism-javascript.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/prismjs@1.30.0/components/prism-markup.min.js"></script>
-<style>title {display: inline}</style>
-
-<h1><title>Helene: simple textarea-based code editor</title></h1>
-
-<p>Editor:</p>
-
-<textarea id="helene" data-helene-language="html" spellcheck="false">
+  <script src="https://cdn.jsdelivr.net/npm/prismjs@1.30.0/prism.js" data-manual></script>
+  <script src="https://cdn.jsdelivr.net/npm/prismjs@1.30.0/components/prism-clike.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/prismjs@1.30.0/components/prism-css.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/prismjs@1.30.0/components/prism-javascript.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/prismjs@1.30.0/components/prism-markup.min.js"></script>
+  <style>title {display: inline}</style>
+  <title>Helene: simple textarea-based code editor</title>
+</head>
+<body>
+  <h1>Helene: simple textarea-based code editor</h1>
+  <p>Editor:</p>
+  <textarea id="helene" data-helene-language="html" spellcheck="false">
 <div>
   <a href="#">foo
 </div>
-</textarea>
+  </textarea>
 
-<textarea id="helene2" data-helene-language="javascript" spellcheck="false">
+  <div style="display: flex; height: 10em; position: relative;">
+    <iframe id="preview"></iframe>
+    <div id="previewconsole" class="console"></div>
+  </div>
+
+  <textarea id="helene2" data-helene-language="javascript" spellcheck="false">
 funtion foo() {
   console.log('bar')
 }
-</textarea>
+  </textarea>
+
+  <textarea id="helene3" data-helene-language="css" spellcheck="false">
+  </textarea>
 
 <script type="module">
     import 'acorn'
@@ -52,5 +71,43 @@ funtion foo() {
         textarea: document.getElementById('helene2'),
         validate: true,
     })
+
+    globalThis.editor3 = helene({
+      textarea: document.getElementById('helene3'),
+      validate: true
+    })
+
+    const consolescript = `
+console = {
+  log: function(message) {
+    parent.postMessage(message)
+  }
+}
+`
+  const preview = document.getElementById('preview').contentWindow
+  const previewconsole = document.getElementById('previewconsole')
+
+  window.addEventListener('message', (evt) => {
+    const line = document.createElement('div')
+    line.innerText = evt.data
+    previewconsole.appendChild(line).scrollIntoView()
+  })
+
+  simply.state.effect(() => {
+    const htmlcontent = globalThis.editor1.state.content
+    const jscontent = globalThis.editor2.state.content
+    const csscontent = globalThis.editor3.state.content
+    const html = `<!doctype html><style>${csscontent}</style><body>${htmlcontent}<script>${jscontent}</`+`script><script>${consolescript}</`+`script></body>`
+    preview.document.open()
+    preview.document.write(html)
+    preview.document.close()
+  })
+
+  /*
+  - only update the part that changes - html / js / css - and only when valid
+
+  */
+
 </script>
+</body>
 </html>
