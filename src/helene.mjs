@@ -60,8 +60,9 @@ export class Helene
 
 		this.state = simply.state.signal({
 			options,
-			prevContent: options.textarea.value,
-			lines: options.textarea.value.split("\n"),
+			content: this.textarea.value,
+			prevContent: this.textarea.value,
+			lines: this.textarea.value.split("\n"),
 			block: null,
 			selection: {
 				start: 0,
@@ -89,6 +90,7 @@ export class Helene
 			let changed = false
 			if (content!==this.state.prevContent) {
 				changed = true
+				this.state.content = content
 				if (!this.skipHistory) {
 					if (!this.diff) {
 						// input fires before selectionchange, state.selection
