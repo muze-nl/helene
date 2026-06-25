@@ -1,5 +1,7 @@
 import { fireInput } from './keyboard.mjs'
 import { indentCode, insertTab, outdentCode } from './behaviour.mjs'
+import { javascript } from './javascript.mjs'
+import { css } from './css.mjs'
 
 export function domWalk(htmlStr, callback)
 {
@@ -27,8 +29,8 @@ export function domWalk(htmlStr, callback)
 	const innerWalk = function(el) {
 		lineNumber = findTag(el.tagName)
 		callback(el, lineNumber)
-		if (el.childElements) {
-			for (const child of el.childElements) {
+		if (el.children) {
+			for (const child of el.children) {
 				innerWalk(child)
 			}
 		}
@@ -39,47 +41,35 @@ export function domWalk(htmlStr, callback)
 }
 
 export const html = {
-	highlight: function(content) {
-		if (globalThis.Prism) {
-			content = Prism.highlight(content, Prism.languages.html, 'html')
-		} else {
-			content = escapeHTML(content)
-		}
-		return content
+	highlight: function(content, options) {
+		return this.highlight(content, 'html', options)
 	},
 	parse: function(content, options) {
+		const result = this.validate(content, 'html', options, validateHTML)
+		if (result?.parsed) {
+			this.parsedHTML = result.parsed
+		}
+
 		options = {
 			lineNumber: 0,
 			...options
 		}
-		const fragment = globalThis.document.createRange().createContextualFragment(content)
-		this.parsedHTML = document.createElement('div')
-		this.parsedHTML.appendChild(fragment)
 		if (options.validate) {
-			this.clearWarnings('html')
-			const constructedLines = this.parsedHTML.innerHTML.split("\n")
-			let count = 0
-			for (const line of constructedLines) {
-				if (line != this.state.lines[count]) {
-					if (!this.state.lines[count].match(/\<script\b/i)) {
-						this.addWarning('html', 'Invalid HTML', options.lineNumber + count+1)
-						return
-					}
-				}
-				count++
-			}
-			// now check for script tags
 			domWalk(this.textarea.value, (el, lineNumber) => {
-				if (el.tagName==='SCRIPT' && !el.src && (!el.type || el.type=='javascript') && el.innerText) {
-					javascript.parse(el.innerText, {
+				if (el.tagName==='SCRIPT' && !el.src && (!el.type || el.type==='javascript' || el.type==='module') && el.innerText) {
+					javascript.parse.call(this, el.innerText, {
 						lineNumber: lineNumber + options.lineNumber,
 						...options
 					})
-				} else if (el.tagName==='STYLE') {
-					// css.parse....
+				} else if (el.tagName==='STYLE' && el.innerText) {
+					css.parse.call(this, el.innerText, {
+						lineNumber: lineNumber + options.lineNumber,
+						...options
+					})
 				}
 			})
 		}
+		return result
 	},
 	behaviour: {
 		indent: function(block) {
@@ -119,7 +109,40 @@ export const html = {
 	}
 }
 
+export function validateHTML(content, options = {})
+{
+	options = {
+		lineNumber: 0,
+		...options
+	}
+	const fragment = globalThis.document.createRange().createContextualFragment(content)
+	const parsedHTML = document.createElement('div')
+	parsedHTML.appendChild(fragment)
+
+	if (options.validate) {
+		const constructedLines = parsedHTML.innerHTML.split("\n")
+		const sourceLines = content.split("\n")
+		let count = 0
+		for (const line of constructedLines) {
+			if (line != sourceLines[count]) {
+				if (!sourceLines[count]?.match(/\<script\b/i)) {
+					return {
+						message: 'Invalid HTML',
+						line: options.lineNumber + count + 1
+					}
+				}
+			}
+			count++
+		}
+	}
+
+	return { parsed: parsedHTML }
+}
+
 export function escapeHTML(str)
 {
-	return str.replace(/\</g, '&lt;')
+	return String(str)
+		.replace(/&/g, '&amp;')
+		.replace(/</g, '&lt;')
+		.replace(/>/g, '&gt;')
 }

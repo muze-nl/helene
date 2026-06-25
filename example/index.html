@@ -5,8 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
   <link rel="stylesheet" href="../src/helene.css">
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/prism-themes@1.9.0/themes/prism-cb.css">
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/prismjs@1.30.0/themes/prism.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11.11.1/build/styles/github.min.css">
   <style>
     .console {
       font-family: monospace;
@@ -20,17 +19,16 @@
 
   <script type="importmap">
       {"imports": {
-          "acorn": "https://cdn.jsdelivr.net/npm/acorn@8.16.0/dist/acorn.js",
+          "acorn": "https://cdn.jsdelivr.net/npm/acorn@8.16.0/dist/acorn.mjs",
           "helene": "../src/helene.mjs",
+          "highlight.js/core": "https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11.11.1/build/es/core.min.js",
+          "highlight.js/languages/css": "https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11.11.1/build/es/languages/css.min.js",
+          "highlight.js/languages/javascript": "https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11.11.1/build/es/languages/javascript.min.js",
+          "highlight.js/languages/xml": "https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11.11.1/build/es/languages/xml.min.js",
           "simplyflow": "https://cdn.jsdelivr.net/npm/simplyflow@0.7.9/dist/simply.flow.js"
       }}
   </script>
 
-  <script src="https://cdn.jsdelivr.net/npm/prismjs@1.30.0/prism.js" data-manual></script>
-  <script src="https://cdn.jsdelivr.net/npm/prismjs@1.30.0/components/prism-clike.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/prismjs@1.30.0/components/prism-css.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/prismjs@1.30.0/components/prism-javascript.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/prismjs@1.30.0/components/prism-markup.min.js"></script>
   <style>title {display: inline}</style>
   <title>Helene: simple textarea-based code editor</title>
 </head>
@@ -58,23 +56,45 @@ funtion foo() {
   </textarea>
 
 <script type="module">
-    import 'acorn'
+    import * as acorn from 'acorn'
+    import hljs from 'highlight.js/core'
+    import javascript from 'highlight.js/languages/javascript'
+    import css from 'highlight.js/languages/css'
+    import xml from 'highlight.js/languages/xml'
     import helene from 'helene'
     import 'simplyflow'
+
+    globalThis.acorn = acorn
+
+    hljs.registerLanguage('javascript', javascript)
+    hljs.registerLanguage('css', css)
+    hljs.registerLanguage('xml', xml)
+
+    const highlighter = {
+      highlight(code, language) {
+        return hljs.highlight(code, {
+          language: language === 'html' ? 'xml' : language,
+          ignoreIllegals: true
+        }).value
+      }
+    }
 
     globalThis.editor1 = helene({
         textarea: document.getElementById('helene'),
         validate: true,
+        highlighter
     })
 
     globalThis.editor2 = helene({
         textarea: document.getElementById('helene2'),
         validate: true,
+        highlighter
     })
 
     globalThis.editor3 = helene({
       textarea: document.getElementById('helene3'),
-      validate: true
+      validate: true,
+      highlighter
     })
 
     const consolescript = `

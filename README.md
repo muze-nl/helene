@@ -40,18 +40,72 @@ function foo() {
 </script>
 ```
 
-To enable syntax highlighting Helene uses [Prism](https://prismjs.com/). Just make sure that it is loaded and Helene will use it. For example:
+Syntax highlighting is optional. Helene has a small highlighter adapter API:
 
-```html
-<link rel="stylesheet" href="https://dev.prismjs.com/themes/prism-cb.css">
-<script src="https://dev.prismjs.com/prism.js" data-manual></script>
+```js
+helene({
+  textarea: document.getElementById('mycode'),
+  highlighter: {
+    highlight(code, language) {
+      return myHighlighter(code, language) // must return escaped HTML
+    }
+  }
+})
 ```
 
-HTML and javascript linting are enabled by default. Javascript linting is done using `eval`, unless you load [Acorn](https://github.com/acornjs/acorn), in which case that is used:
+For example, with highlight.js:
 
-```html
-<script type="module">
-  import * as acorn from 'https://esm.sh/acorn@8.16.0/es2022/acorn.bundle.mjs'
-  globalThis.acorn = acorn
-</script>
+```js
+import hljs from '/lib/highlight.js/core.min.js'
+import javascript from '/lib/highlight.js/languages/javascript.min.js'
+import css from '/lib/highlight.js/languages/css.min.js'
+import xml from '/lib/highlight.js/languages/xml.min.js'
+
+hljs.registerLanguage('javascript', javascript)
+hljs.registerLanguage('css', css)
+hljs.registerLanguage('xml', xml)
+
+helene({
+  textarea: document.getElementById('mycode'),
+  highlighter: {
+    highlight(code, language) {
+      return hljs.highlight(code, {
+        language: language === 'html' ? 'xml' : language,
+        ignoreIllegals: true
+      }).value
+    }
+  }
+})
 ```
+
+If no highlighter is injected, Helene still falls back to a global [Prism](https://prismjs.com/) object when available. If no highlighter is available, Helene safely escapes the source and shows it without colours.
+
+HTML, CSS and JavaScript validation can also be injected. Validators may be a function or an object with a `validate()` method. They should return nothing for valid code, a warning object, an array of warning objects, or `{ warnings: [...] }`. Warning lines are 1-based editor lines.
+
+```js
+helene({
+  textarea: document.getElementById('mycode'),
+  validate: true,
+  validators: {
+    javascript(code, language, context) {
+      try {
+        acorn.parse(code, { ecmaVersion: 'latest', sourceType: 'module' })
+      } catch (err) {
+        return {
+          message: err.message,
+          line: context.lineNumber + err.loc.line,
+          column: err.loc.column
+        }
+      }
+    },
+    html(code) {
+      return null
+    },
+    css(code) {
+      return null
+    }
+  }
+})
+```
+
+Without an injected validator, JavaScript validation uses a global [Acorn](https://github.com/acornjs/acorn) object when available. If Acorn is not available, Helene uses `new Function()` as a syntax-only fallback. HTML validation uses the browser DOM parser as a small best-effort check. CSS validation is best-effort too, because browser CSS parsers are intentionally forgiving.

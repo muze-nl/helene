@@ -1,5 +1,5 @@
 {
-  "name": "@muze-nl/helene",
+  "name": "helene",
   "description": "A minimal code editor",
   "type": "module",
   "version": "0.1.0",
@@ -13,7 +13,8 @@
   "scripts": {
     "build-dev": "./node_modules/.bin/esbuild src/helene.mjs --bundle --format=esm --sourcemap --outfile=dist/helene.js",
     "build": "./node_modules/.bin/esbuild src/helene.mjs --bundle --format=esm --sourcemap --outfile=dist/helene.min.js --minify",
-    "watch": "watch 'npm run build-dev' ./src & npx http-server www/"
+    "watch": "watch 'npm run build-dev' ./src & npx http-server www/",
+    "test": "node --test"
   },
   "repository": {
     "type": "git",
@@ -31,12 +32,5 @@
     "jest": "^30.4.2",
     "watch": "^1.0.2"
   },
-  "dependencies": {
-  },
-  "files": [
-    "dist/",
-    "src/",
-    "README.md",
-    "LICENSE"
-  ]
+  "dependencies": {}
 }

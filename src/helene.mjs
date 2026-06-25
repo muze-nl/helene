@@ -37,9 +37,9 @@ export class Helene
 		options.textarea.classList.forEach((c) => {
 			this.editor.classList.add(c)
 		})
-		// for (const d in options.textarea.dataset) {
-		// 	this.editor.dataset[d] = options.textarea.dataset[d]
-		// }
+		for (const d in options.textarea.dataset) {
+			this.editor.dataset[d] = options.textarea.dataset[d]
+		}
 		options.textarea.classList.add('helene-content')
 		options.textarea.parentElement.insertBefore(this.editor, options.textarea)
 
@@ -77,9 +77,6 @@ export class Helene
 			javascript,
 			css
 		}
-
-		this.keyboard = {}
-		
 		simply.state.effect(() => {
 			const lang = this.textarea.dataset.heleneLanguage
 			if (this.languages[lang]) {
@@ -226,6 +223,123 @@ export class Helene
 		})
 	}
 
+
+	getHighlighter(options = {})
+	{
+		return options.highlighter
+			|| this.state.options.highlighter
+			|| globalThis.heleneHighlighter
+	}
+
+	highlight(content, language, options = {})
+	{
+		const highlighter = this.getHighlighter(options)
+		const context = {
+			editor: this,
+			language,
+			options
+		}
+
+		if (typeof highlighter === 'function') {
+			return highlighter(content, language, context)
+		}
+		if (highlighter?.highlight) {
+			return highlighter.highlight(content, language, context)
+		}
+
+		if (globalThis.Prism) {
+			const prismLanguage = prismLanguageFor(language)
+			const grammar = globalThis.Prism.languages?.[prismLanguage]
+				|| (language === 'html' ? globalThis.Prism.languages?.markup : null)
+			if (grammar) {
+				return globalThis.Prism.highlight(content, grammar, prismLanguage)
+			}
+		}
+
+		return escapeHTML(content)
+	}
+
+	getValidator(language, options = {})
+	{
+		const validators = options.validators
+			|| this.state.options.validators
+			|| globalThis.heleneValidators
+		if (validators) {
+			if (validators[language]) {
+				return validators[language]
+			}
+			if (validators.validate || typeof validators === 'function') {
+				return validators
+			}
+		}
+		return options.validator
+			|| this.state.options.validator
+			|| globalThis.heleneValidator
+	}
+
+	validate(content, language, options = {}, fallback = null)
+	{
+		options = {
+			lineNumber: 0,
+			...options
+		}
+		const validator = this.getValidator(language, options)
+		const context = {
+			editor: this,
+			language,
+			lineNumber: options.lineNumber,
+			options,
+			addWarning: (warning) => this.reportWarning(language, warning, options)
+		}
+
+		if (options.validate) {
+			this.clearWarnings(language)
+		}
+
+		let result
+		try {
+			if (validator) {
+				result = runValidator(validator, content, language, context)
+			} else if (fallback) {
+				result = fallback.call(this, content, options, context)
+			}
+		} catch(err) {
+			result = err
+		}
+
+		if (options.validate) {
+			this.reportValidationResult(language, result, options)
+		}
+		return result
+	}
+
+	reportValidationResult(language, result, options = {})
+	{
+		for (const warning of validationWarnings(result)) {
+			this.reportWarning(language, warning, options)
+		}
+	}
+
+	reportWarning(language, warning, options = {})
+	{
+		if (!warning) {
+			return
+		}
+		if (typeof warning === 'string') {
+			warning = { message: warning }
+		}
+		if (warning instanceof Error) {
+			warning = {
+				message: warning.message,
+				line: options.lineNumber + (warning.loc?.line || warning.lineNumber || 1),
+				column: warning.loc?.column || warning.columnNumber
+			}
+		}
+		const type = warning.type || language
+		const line = warning.line || options.lineNumber + 1
+		this.addWarning(type, warning.message || String(warning), line, warning.icon)
+	}
+
 	addWarning(type, message, line, icon=null)
 	{
 		const warning = document.createElement('span')
@@ -298,6 +412,52 @@ export class Helene
 		this.diff = null
 		clearTimeout(this.pendingHistory)
 	}
+}
+
+
+function runValidator(validator, content, language, context)
+{
+	if (typeof validator === 'function') {
+		return validator(content, language, context)
+	}
+	if (validator?.validate) {
+		return validator.validate(content, language, context)
+	}
+	throw new Error('Helene: validator must be a function or an object with a validate method')
+}
+
+export function validationWarnings(result)
+{
+	if (!result || result === true) {
+		return []
+	}
+	if (Array.isArray(result)) {
+		return result.flatMap(validationWarnings)
+	}
+	if (result instanceof Error || typeof result === 'string') {
+		return [result]
+	}
+	if (result.warnings) {
+		return validationWarnings(result.warnings)
+	}
+	if (result.message) {
+		return [result]
+	}
+	if (result === false) {
+		return ['Invalid code']
+	}
+	return []
+}
+
+function prismLanguageFor(language)
+{
+	if (language === 'html') {
+		return 'html'
+	}
+	if (language === 'js') {
+		return 'javascript'
+	}
+	return language
 }
 
 
