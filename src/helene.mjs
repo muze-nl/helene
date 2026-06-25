@@ -37,9 +37,6 @@ export class Helene
 		options.textarea.classList.forEach((c) => {
 			this.editor.classList.add(c)
 		})
-		for (const d in options.textarea.dataset) {
-			this.editor.dataset[d] = options.textarea.dataset[d]
-		}
 		options.textarea.classList.add('helene-content')
 		options.textarea.parentElement.insertBefore(this.editor, options.textarea)
 
@@ -77,6 +74,9 @@ export class Helene
 			javascript,
 			css
 		}
+
+		this.keyboard = {}
+		
 		simply.state.effect(() => {
 			const lang = this.textarea.dataset.heleneLanguage
 			if (this.languages[lang]) {
