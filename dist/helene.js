@@ -178,7 +178,7 @@ var html = {
     if (globalThis.Prism) {
       content2 = Prism.highlight(content2, Prism.languages.html, "html");
     } else {
-      content2 = escapeHTML2(content2);
+      content2 = escapeHTML(content2);
     }
     return content2;
   },
@@ -251,7 +251,7 @@ var html = {
     }
   }
 };
-function escapeHTML2(str) {
+function escapeHTML(str) {
   return str.replace(/\</g, "&lt;");
 }
 
@@ -410,9 +410,6 @@ var Helene = class {
     options2.textarea.classList.forEach((c) => {
       this.editor.classList.add(c);
     });
-    for (const d in options2.textarea.dataset) {
-      this.editor.dataset[d] = options2.textarea.dataset[d];
-    }
     options2.textarea.classList.add("helene-content");
     options2.textarea.parentElement.insertBefore(this.editor, options2.textarea);
     this.el = {
@@ -446,6 +443,7 @@ var Helene = class {
       javascript: javascript2,
       css
     };
+    this.keyboard = {};
     simply.state.effect(() => {
       const lang = this.textarea.dataset.heleneLanguage;
       if (this.languages[lang]) {

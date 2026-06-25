@@ -91,6 +91,7 @@
   background: transparent;
   color: transparent;
   caret-color: white;
+  width: auto;
 }
 .helene-status {
   grid-area: status;

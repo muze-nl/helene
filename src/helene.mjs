@@ -1,5 +1,5 @@
 import History, { Change, Diff } from './history.mjs'
-import { html } from './html.mjs'
+import { html, escapeHTML } from './html.mjs'
 import { javascript } from './javascript.mjs'
 import { css } from './css.mjs'
 import { getKeyString } from './keyboard.mjs'
@@ -37,9 +37,9 @@ export class Helene
 		options.textarea.classList.forEach((c) => {
 			this.editor.classList.add(c)
 		})
-		for (const d in options.textarea.dataset) {
-			this.editor.dataset[d] = options.textarea.dataset[d]
-		}
+		// for (const d in options.textarea.dataset) {
+		// 	this.editor.dataset[d] = options.textarea.dataset[d]
+		// }
 		options.textarea.classList.add('helene-content')
 		options.textarea.parentElement.insertBefore(this.editor, options.textarea)
 
@@ -77,6 +77,9 @@ export class Helene
 			javascript,
 			css
 		}
+
+		this.keyboard = {}
+		
 		simply.state.effect(() => {
 			const lang = this.textarea.dataset.heleneLanguage
 			if (this.languages[lang]) {

@@ -38,21 +38,17 @@ export const javascript = {
 		indent: function(block) {
 			if (this.state.block) {
 				this.blockChange(block.start, block.end, indentCode)
-				fireInput(evt)
 			} else {
 				insertTab.call(this, this.textarea.selectionStart, this.textarea.selectionEnd)
-				fireInput(evt)
 			}
 		},
 		outdent: function(block) {
 			if (block) {
 				this.blockChange(block.start, block.end, outdentCode)
-				fireInput(evt)
 			}
 		},
 		toggleBlockComments: function(block) {
 			this.blockChange.call(this, this.state.block.start, this.state.block.end, toggleBlockComments)
-			fireInput(evt)
 		}
 	},
 	keyboard: {
@@ -64,17 +60,20 @@ export const javascript = {
 				delete this.skipNextTab
 				return
 			}
-			this.behaviour.indent(this.state.block)
+			javascript.behaviour.indent.call(this, this.state.block)
+			fireInput(evt)
 		},
 		'shift-tab': function(evt) {
 			if (this.skipNextTab) {
 				delete this.skipNextTab
 				return
 			}
-			this.behaviour.outdent(this.state.block)
+			javascript.behaviour.outdent.call(this, this.state.block)
+			fireInput(evt)
 		},
 		'control-/': function(evt) {
-			this.behaviour.toggleBlockComments(this.state.block)
+			javascript.behaviour.toggleBlockComments.call(this, this.state.block)
+			fireInput(evt)
 		}
 	}
 }
